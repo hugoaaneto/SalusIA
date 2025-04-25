@@ -20,6 +20,8 @@
 
 ## Requisitos
 
+- Ter o [Ollama](https://ollama.com/) instalado e em execução localmente, com pelo menos alguns modelos previamente baixados (por exemplo, `llama3.2`, `mistral` ou `gemma`) para garantir o funcionamento do sistema.
+
 Recomenda-se o uso de um ambiente virtual (venv) para garantir o isolamento das dependências:
 
 ```bash
