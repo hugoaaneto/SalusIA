@@ -59,6 +59,7 @@ if "audio_processed" not in st.session_state:
     st.session_state.audio_processed = False
 
 st.sidebar.title("Selecionar configurações:")
+local = st.sidebar.checkbox("Rodar local com modelo de IA local", value=True)
 model_selected = st.sidebar.selectbox(
     "Modelo:", available_models, index=available_models.index("llama3.2:latest")
 )
@@ -146,11 +147,18 @@ with tab_conversa:
 
         full_response = ""
         start_time = time.time()
-        for chunk in llm_conect.generate_text(
-            processed, model=model_selected, reference=reference_context, use_rag=False
-        ):
-            full_response += chunk
-            response_placeholder.markdown(f"**🤖 Bot:** {full_response}▌")
+        if local == True:
+            for chunk in llm_conect.generate_text_local(
+                processed, model=model_selected, reference=reference_context, use_rag=False
+            ):
+                full_response += chunk
+                response_placeholder.markdown(f"**🤖 Bot:** {full_response}▌")
+        else:
+            for chunk in llm_conect.generate_text_cloud(
+                processed, reference=reference_context, use_rag=False
+            ):
+                full_response += chunk
+                response_placeholder.markdown(f"**🤖 Bot:** {full_response}▌")
 
         end_time = time.time()
         duration = end_time - start_time
