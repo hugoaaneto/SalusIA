@@ -1,13 +1,16 @@
+import hashlib
+import tempfile
 import time
+
+import pandas as pd
+import speech_recognition as sr
 import streamlit as st
 from audio_recorder_streamlit import audio_recorder
+
 import llm_conect
-from ai_processing import named_entity_recognition
+from ai_processing import extrair_e_agrupar
+from evaluation import evaluate_generation
 from pre_processing import preprocess
-import tempfile
-import speech_recognition as sr
-import hashlib
-import pandas as pd
 
 st.set_page_config(
     page_title="chatbot",
@@ -37,16 +40,19 @@ def get_audio_hash(audio_bytes):
 
 
 def format_ner_result(ner_data):
-    df = pd.DataFrame(ner_data)
-    df = df.rename(
-        columns={
-            "word": "Termo",
-            "entity_group": "Tipo de Entidade",
-            "score": "Score",
-        }
-    )
-    df["Score"] = df["Score"].apply(lambda x: round(x, 3))
-    return df
+    registros = []
+
+    for modelo, entidades in ner_data.items():
+        for ent in entidades:
+            registros.append(
+                {
+                    "Termo": ent["word"],
+                    "Tipo de Entidade": ent["entity_group"],
+                    "Score": round(ent["score"], 3),
+                }
+            )
+
+    return pd.DataFrame(registros)
 
 
 if "chat_history" not in st.session_state:
@@ -59,20 +65,24 @@ if "audio_processed" not in st.session_state:
     st.session_state.audio_processed = False
 
 st.sidebar.title("Selecionar configurações:")
-local = st.sidebar.checkbox("Rodar local com modelo de IA local", value=True)
+local = st.sidebar.checkbox("Rodar com modelo de IA local", value=True)
 model_selected = st.sidebar.selectbox(
     "Modelo:", available_models, index=available_models.index("llama3.2:latest")
 )
 to_lower = st.sidebar.checkbox("Converter para minúsculas", value=True)
 remove_punct = st.sidebar.checkbox("Remover pontuação", value=True)
 remove_stop = st.sidebar.checkbox("Remover stopwords", value=False)
+apply_stem = st.sidebar.checkbox("Stemming", value=True)
+apply_lemma = st.sidebar.checkbox("Lemmatization", value=False)
 use_historic = st.sidebar.checkbox("Usar histórico", value=False)
 input_mode = st.sidebar.radio("Modo de entrada:", ["Texto", "Áudio"])
 
-tab_conversa, tab_ner = st.tabs(["💬 Conversa", "🧠 Resultado NER"])
+tab_conversa, tab_ner, tab_metrics = st.tabs(
+    ["Conversa", "Resultado NER", "Metricas de avaliação"]
+)
 
 with tab_conversa:
-    st.title("🗨️ Chat com o Bot")
+    st.title("SalusIA")
 
     with st.container():
         for entry in st.session_state.chat_history:
@@ -142,14 +152,20 @@ with tab_conversa:
         if not use_historic:
             reference_context = ""
 
-        processed = preprocess(user_input, to_lower, remove_punct, remove_stop)
+        processed = preprocess(
+            user_input, to_lower, remove_punct, remove_stop, apply_stem, apply_lemma
+        )
+
         st.session_state.chat_history.append(("Você", user_input, "", 0))
 
         full_response = ""
         start_time = time.time()
         if local == True:
             for chunk in llm_conect.generate_text_local(
-                processed, model=model_selected, reference=reference_context, use_rag=False
+                processed,
+                model=model_selected,
+                reference=reference_context,
+                use_rag=False,
             ):
                 full_response += chunk
                 response_placeholder.markdown(f"**🤖 Bot:** {full_response}▌")
@@ -170,23 +186,43 @@ with tab_conversa:
         st.session_state.pending_input = None
         st.session_state.input_submitted = False
         st.session_state.audio_processed = False
-        st.rerun()
 
-with tab_ner:
-    exec_ner = st.sidebar.button("Identificar NER")
-
-    if exec_ner:
         all_user_text = " ".join(
             msg
             for sender, msg, _, _ in st.session_state.chat_history
             if sender == "Você"
         )
-        ner_result = named_entity_recognition(all_user_text)
+        ner_result = extrair_e_agrupar(all_user_text)
         st.session_state.ner_result = ner_result
 
+        metrics = evaluate_generation(user_input, full_response)
+        st.session_state.metrics = metrics
+
+        st.rerun()
+
+with tab_ner:
     if "ner_result" in st.session_state and st.session_state.ner_result:
-        st.subheader("🧠 Resultado do NER")
+        st.subheader("Resultado do NER")
         df_ner = format_ner_result(st.session_state.ner_result)
         st.dataframe(df_ner, use_container_width=True)
     else:
-        st.info("Clique no botão na barra lateral para gerar o resultado do NER.")
+        st.info("Resultados NER ainda não identificados.")
+
+with tab_metrics:
+    if "metrics" in st.session_state and st.session_state.metrics:
+        st.subheader("Metricas de avaliação")
+        metrics = st.session_state.metrics
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric("Distinct-1", f"{metrics['dist_1']:.3f}")
+            st.metric("Perplexidade", f"{metrics['perplexity']:.3f}")
+
+        with col2:
+            st.metric("Distinct-2", f"{metrics['dist_2']:.3f}")
+            st.metric("Gramaticalidade", f"{metrics['grammaticality']:.3f}")
+
+        with col3:
+            st.metric("Distinct-3", f"{metrics['dist_3']:.3f}")
+    else:
+        st.info("Nenhuma metrica disponivel.")

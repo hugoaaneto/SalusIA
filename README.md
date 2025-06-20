@@ -1,28 +1,34 @@
 # SalusIA
 
-**SalusIA** é um sistema inteligente desenvolvido em Python com Streamlit, que utiliza técnicas de Inteligência Artificial (IA) e Processamento de Linguagem Natural (PLN) para oferecer recomendações de saúde a partir de dados clínicos. O projeto está sendo desenvolvido com o objetivo de auxiliar profissionais da saúde na análise de prontuários, geração de hipóteses diagnósticas e estruturação da anamnese, reduzindo a sobrecarga cognitiva e aumentando a precisão no atendimento.
+**SalusIA** is an intelligent system developed in Python with Streamlit, which uses Artificial Intelligence (AI) and Natural Language Processing (NLP) techniques to offer health recommendations based on clinical data. The project is being developed with the goal of assisting healthcare professionals in analyzing medical records, generating diagnostic hypotheses, and structuring anamnesis, thereby reducing cognitive overload and increasing accuracy in patient care.
 
-## Funcionalidades
+---
 
-- Extração automatizada de dados clínicos estruturados e não estruturados.
-- Normalização de texto médico utilizando PLN.
-- Extração de entidades médicas e identificação de relações entre sintomas, exames e diagnósticos.
-- Sugestão de hipóteses diagnósticas com base em faixas de referência e bases de conhecimento.
-- Geração automatizada de anamnese estruturada.
-- Apoio à decisão clínica com validação final feita por profissionais.
+## Features
 
-## Tecnologias Utilizadas
+* **Automated Extraction:** Extracts structured and unstructured clinical data.
+* **Medical Text Normalization:** Utilizes NLP to normalize medical text.
+* **Entity Extraction:** Identifies medical entities and relationships between symptoms, exams, and diagnoses.
+* **Diagnostic Hypotheses:** Suggests diagnostic hypotheses based on reference ranges and knowledge bases.
+* **Clinical Decision Support:** Provides clinical decision support with final validation by professionals.
 
-- **Python**: Linguagem principal para backend e manipulação de dados clínicos.
-- **Streamlit**: Framework utilizado para a criação da interface interativa.
-- **Modelos de IA e PLN**: Para análise semântica dos dados e sugestões diagnósticas.
-- **APIs para LLMs**: Integração com agentes inteligentes para inferência médica.
+---
 
-## Requisitos
+## Technologies Used
 
-- Ter o [Ollama](https://ollama.com/) instalado e em execução localmente, com pelo menos alguns modelos previamente baixados (por exemplo, `llama3.2`, `mistral` ou `gemma`) para garantir o funcionamento do sistema.
+* **Python**: The primary language for the backend and clinical data manipulation.
+* **Streamlit**: Framework used for creating the interactive interface.
+* **AI and NLP Models**: For semantic data analysis and diagnostic suggestions.
+* **APIs for LLMs**: Integration with intelligent agents for medical inference.
 
-Recomenda-se o uso de um ambiente virtual (venv) para garantir o isolamento das dependências:
+---
+
+## Requirements
+
+You'll need to have [Ollama](https://ollama.com/) installed and running locally, with at least a few models previously downloaded (e.g., `llama3.2`, `mistral`, or `gemma`) to ensure the system functions correctly.
+
+It's recommended to use a virtual environment (venv) to ensure dependency isolation:
+
 
 ```bash
 python -m venv venv
@@ -30,27 +36,21 @@ source venv/bin/activate  # Linux/macOS
 venv\Scripts\activate   # Windows
 ```
 
-Em seguida, instale as dependências com:
+Then, install the dependencies with:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Execução
+## Execution
 
-Para iniciar a aplicação, execute o seguinte comando:
+To start the application, run the following command:
+
+
 
 ```bash
 streamlit run main.py
 ```
-
-## Autores
-
-- Rui Pontes  
-- Hugo Amorim  
-- Paulo Beralson  
-- João Victor  
-- Allanyo Santos
 
 ---
 

@@ -3,9 +3,9 @@ import json
 
 
 def generate_text_cloud(prompt, reference="", use_rag=False):
-    full_prompt = f"{prompt}. Responda tudo em português."
+    full_prompt = f"Considerando: {prompt}. Explique qual o medico mais apropriado para lidar com essa situação e faça uma avaliação inicial do caso. Responda tudo em português."
     if len(reference) > 1:
-        full_prompt = f"{reference}\n\nA partir do texto acima, responda: \n{prompt}. Responda tudo em português."
+        full_prompt = f"Considerando {reference}\n\n e \n{prompt}. Explique qual o medico mais apropriado para lidar com essa situação e faça uma avaliação inicial do caso. Responda tudo em português."
 
     prompt_json_string = json.dumps({"message": full_prompt})
     payload = {"prompt": prompt_json_string}
@@ -24,9 +24,9 @@ def generate_text_cloud(prompt, reference="", use_rag=False):
 
 
 def generate_text_local(prompt, model, reference="", use_rag=False):
-    full_prompt = f"{prompt}. Responda tudo em português."
+    full_prompt = f"Considerando: {prompt}. Explique qual o medico mais apropriado para lidar com essa situação e faça uma avaliação inicial do caso. Responda tudo em português."
     if len(reference) > 1:
-        full_prompt = f"{reference}\n\nA partir do texto acima, responda: \n{prompt}. Responda tudo em português."
+        full_prompt = f"Considerando {reference}\n\n e \n{prompt}. Explique qual o medico mais apropriado para lidar com essa situação e faça uma avaliação inicial do caso. Responda tudo em português."
 
     url = "http://localhost:11434/api/generate"
     payload = {"model": model, "prompt": full_prompt, "stream": True}

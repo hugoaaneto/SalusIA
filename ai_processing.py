@@ -2,7 +2,12 @@ import faiss
 import nltk
 import tiktoken
 from sentence_transformers import SentenceTransformer
-from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
+from transformers import (
+    AutoModelForTokenClassification,
+    AutoTokenizer,
+    pipeline,
+    AutoModel,
+)
 
 # Model for RAG
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -10,15 +15,22 @@ encoding = tiktoken.get_encoding("cl100k_base")
 nltk.download("punkt")
 
 # Model for NER
-ner_tokenizer = AutoTokenizer.from_pretrained(
-    "pierreguillou/ner-bert-base-cased-pt-lenerbr"
-)
-ner_model = AutoModelForTokenClassification.from_pretrained(
-    "pierreguillou/ner-bert-base-cased-pt-lenerbr"
-)
-ner_model = pipeline(
-    "ner", model=ner_model, tokenizer=ner_tokenizer, aggregation_strategy="simple"
-)
+NER_MODELS = {
+    "Médico": "pucpr/clinicalnerpt-medical",
+    "Químico": "pucpr/clinicalnerpt-chemical",
+    "Diagnóstico": "pucpr/clinicalnerpt-diagnostic",
+    "Doença": "pucpr/clinicalnerpt-disease",
+    "Procedimento": "pucpr/clinicalnerpt-procedure",
+}
+
+PIPELINES = {
+    tipo: pipeline(
+        task="token-classification",
+        model=path,
+        aggregation_strategy="simple",
+    )
+    for tipo, path in NER_MODELS.items()
+}
 
 
 # -----------------------------------------------------------------------------------------------------------------
@@ -73,46 +85,77 @@ def rag_personalized(text, query, top_k=3):
 # -----------------------------------------------------------------------------------------------------------------
 # ----------------------------------------- NER (Named entity recognition) ----------------------------------------
 # -----------------------------------------------------------------------------------------------------------------
-def named_entity_recognition(text, top_k=16):
-    query = "Texto contendo nomes de pessoas, organizações, locais e jurisprudências relevantes."
-    relevant_chunks = rag_personalized(text, query, top_k)
+def agrupar_entidades(entidades):
+    entidades = sorted(entidades, key=lambda x: x["start"])
+
+    resultados, buffer_palavra, buffer_scores = [], [], []
+    buffer_tipo, ultimo_end = None, None
+
+    for token in entidades:
+        tipo_atual = token["tipo"]
+        palavra = token["entidade"]
+        score = float(token["score"])
+
+        novo_grupo = (
+            buffer_tipo is None
+            or tipo_atual != buffer_tipo
+            or token["start"] > (ultimo_end or 0) + 1
+        )
+
+        if novo_grupo:
+            if buffer_palavra:
+                if sum(buffer_scores) / len(buffer_scores) > 0.9:
+                    resultados.append(
+                        {
+                            "word": "".join(buffer_palavra).replace("##", ""),
+                            "entity_group": buffer_tipo,
+                            "score": sum(buffer_scores) / len(buffer_scores),
+                        }
+                    )
+
+            buffer_palavra = [palavra]
+            buffer_scores = [score]
+            buffer_tipo = tipo_atual
+        else:
+            prefixo = "" if palavra.startswith("##") else " "
+            buffer_palavra.append(prefixo + palavra)
+            buffer_scores.append(score)
+
+        ultimo_end = token["end"]
+
+    if buffer_palavra:
+        if sum(buffer_scores) / len(buffer_scores) > 0.9:
+            resultados.append(
+                {
+                    "word": "".join(buffer_palavra).replace("##", ""),
+                    "entity_group": buffer_tipo,
+                    "score": sum(buffer_scores) / len(buffer_scores),
+                }
+            )
+
+    return resultados
+
+
+def extrair_e_agrupar(text):
+    entidades_por_tipo = {}
+    query = "Texto contendo nomes medicamentos, procedimentos medicos e assuntos ligados a saude."
+    relevant_chunks = rag_personalized(text, query, 8)
     relevant_chunks = list(dict.fromkeys(relevant_chunks))
 
-    entities = ner_model(relevant_chunks)
+    for tipo, ner in PIPELINES.items():
+        tokens = ner(text)
 
-    entities_merged = [item for sentence in entities for item in sentence]
-    formatted_entities = []
-    temp_entity = None
-
-    for entity in entities_merged:
-        current_entity = entity["entity_group"]
-
-        if temp_entity and (
-            current_entity.startswith("I-")
-            or current_entity == temp_entity["entity_group"]
-        ):
-            if "##" in entity["word"]:
-                temp_entity["word"] += entity["word"].replace("##", "")
-            else:
-                temp_entity["word"] += " " + entity["word"]
-            temp_entity["score"] = (temp_entity["score"] + entity["score"]) / 2
-        else:
-            if temp_entity:
-                formatted_entities.append(temp_entity)
-            temp_entity = {
-                "word": entity["word"],
-                "entity_group": current_entity,
-                "score": entity["score"],
+        tokens_normalizados = [
+            {
+                "tipo": tipo,
+                "entidade": t["word"],
+                "score": t["score"],
+                "start": t["start"],
+                "end": t["end"],
             }
+            for t in tokens
+        ]
 
-    if temp_entity:
-        formatted_entities.append(temp_entity)
+        entidades_por_tipo[tipo] = agrupar_entidades(tokens_normalizados)
 
-    formatted_entities = [
-        entity for entity in formatted_entities if not entity["word"].startswith("#")
-    ]
-
-    for entity in formatted_entities:
-        entity["score"] = float(entity["score"])
-
-    return formatted_entities
+    return entidades_por_tipo
